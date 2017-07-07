@@ -162,6 +162,21 @@ class Vocab(object):
             self.voc_dist[vid] = self.voc2count[v]
         self.voc_dist = self.voc_dist / self.voc_dist.sum()
 
+def load_data(data_file, vocab, data_type = 'cbow'):
+    x_full = []
+    y_full = []
+    with codecs.open(data_file, 'r', 'utf-8') as _file:
+        for line in _file:
+            if data_type == 'cbow':
+                int_line = [vocab.vocab2id[i] for i in line.strip().split()]
+                x_full.append(int_line[:-1])
+                y_full.append(int_line[-1])
+            elif data_type == 'skipgram':
+                pass
+            else:
+                raise BaseException("unknown data_type" + data_type)
+    return np.asarray(x_full), np.asarray(y_full)
+
 
 if __name__ == '__main__':
     opt= argparse.ArgumentParser(description="write program description here")
@@ -169,7 +184,6 @@ if __name__ == '__main__':
     opt.add_argument('-v', action='store', dest='vocab_file', required = True)
     opt.add_argument('-t', action='store', dest='training_data', required = True)
     options = opt.parse_args()
-
     V = 100
     h = 5
     c = 3
@@ -178,3 +192,7 @@ if __name__ == '__main__':
     x = np.random.randint(0, V, (b, c))
     yo = cbow.get_out(x)
     print yo.shape
+    vocab = Vocab(options.vocab_file)
+    X_full, Y_full = load_data(options.training_data)
+    print X_full.shape
+    print Y_full.shape
