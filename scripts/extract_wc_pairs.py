@@ -22,6 +22,7 @@ if __name__ == '__main__':
 
     #insert options here
     opt.add_argument('-c', action='store', dest='corpus_file', default='', required = True)
+    opt.add_argument('-o', action='store', dest='out_corpus_file', default='', required = True)
     opt.add_argument('-w', action='store', dest='window_size', default=3, type=int)
     opt.add_argument('-f', action='store', dest='freq_cutoff', default=5000, type=int)
     opt.add_argument('--subsample', action='store', dest='token_subsample', default=1e-3, type=float)
@@ -44,9 +45,9 @@ if __name__ == '__main__':
         word2keepprob[top_w] = (np.sqrt(top_z / options.token_subsample)  + 1.) * (options.token_subsample/ top_z)
 
     line_idx = -1
-    corpus_file_prefix = '.'.join(options.corpus_file.split('.')[:-1])
-    skipgram_data = codecs.open(corpus_file_prefix + '.skipgram.data.txt', 'w', 'utf-8')
-    cbow_data = codecs.open(corpus_file_prefix + '.cbow.data.txt', 'w', 'utf-8')
+    corpus_file_prefix = options.out_corpus_file 
+    skipgram_data = codecs.open(corpus_file_prefix + '.sg.txt', 'w', 'utf-8')
+    cbow_data = codecs.open(corpus_file_prefix + '.cbow.txt', 'w', 'utf-8')
     vocab_data = codecs.open(corpus_file_prefix + '.vocab.txt', 'w', 'utf-8')
     vocab_data.write('\n'.join([str(v_id) + ' ' + v + ' '  + str(word2count.get(v,0)) for v,v_id in sorted(word2wordid.items(), key=lambda x: x[1])]))
     vocab_data.flush()
