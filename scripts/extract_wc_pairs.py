@@ -56,6 +56,8 @@ if __name__ == '__main__':
             line_idx += 1
             words = line.split()
             words = [w for w in words if (w in word2wordid and word2keepprob[w] > np.random.rand())]
+            if len(words) <= 2:
+                continue
             for w_idx, w in enumerate(words):
                 if word2wordid.get(w, None) is not None:
                     context_left = words[max(0, w_idx - options.window_size): w_idx] 
