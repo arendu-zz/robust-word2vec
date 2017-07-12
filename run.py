@@ -1,6 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 from models import CBOW, Vocab
+import pdb
 import codecs
 import numpy as np
 import argparse
@@ -36,24 +37,23 @@ if __name__ == '__main__':
     vocab = Vocab(options.vocab_file)
     X_full, Y_full = load_data(options.training_data, options.model)
     X_dev, Y_dev = load_data(options.dev_data, options.model)
-    print vocab.voc_dist.shape
-    print X_full.shape
-    print Y_full.shape
-    cbow = CBOW(vocab_model = vocab, batch_size = options.batch_size, context_size = X_full.shape[1], embed_size = options.embed_size, reg=0.0)
+    print vocab.voc_dist.shape, X_full.shape, Y_full.shape
+    cbow = CBOW(vocab_model = vocab, batch_size = options.batch_size, context_size = X_full.shape[1], embed_size = options.embed_size, reg=0.0, optimize = 'sgd_clipped')
     t_idx = np.arange(X_full.shape[0])
-    epochs = 5
-    mask_diag = np.ones((vocab.size, vocab.size), dtype=bool)
-    np.fill_diagonal(mask_diag, 0)
+    epochs = 10000
     for e_idx in xrange(epochs):
         np.random.shuffle(t_idx)
         batches = np.array_split(t_idx, X_full.shape[0] / options.batch_size)
-        for b_idx, batch_idxs in enumerate(batches):
-            _batch_loss  = cbow.do_update(0.001, X_full[batch_idxs,:], Y_full[batch_idxs])
-            print e_idx, b_idx, 'of', len(batches), _batch_loss
-        cosine_sims = cbow.cosine_similarity()
-        sorted_cosine_sims = np.argpartition(-cosine_sims, 10)
-        sorted_cosine_sims = sorted_cosine_sims[:, :10]
-        for row_idx in xrange(sorted_cosine_sims.shape[0]):
-            print cbow.vocab_model.id2voc[row_idx], '\t:', ', '.join([cbow.vocab_model.id2voc[i] for i in sorted_cosine_sims[row_idx,:]])
-            pass
-        cbow.save_model(options.save_path + str(e_idx) + '.json')
+        batch_idxs = batches[0]
+        #for b_idx, batch_idxs in enumerate(batches):
+        y_pred  = cbow.get_y_pred(X_full[batch_idxs,:])
+        #YY_ones = np.ones_like(Y_full[batch_idxs]).astype(np.int64)
+        _batch_loss  = cbow.do_update(1., X_full[batch_idxs,:], Y_full[batch_idxs])
+        #_batch_loss  = cbow.do_update(0.1, X_full[batch_idxs,:], YY_ones)
+        print _batch_loss
+        #cosine_sims = cbow.cosine_similarity()
+        #sorted_cosine_sims = np.argpartition(-cosine_sims, 10)
+        #sorted_cosine_sims = sorted_cosine_sims[:, :10]
+        #for row_idx in [1, 10, 100, 200, 500]:
+        #    print cbow.vocab_model.id2voc[row_idx], '\t:', ', '.join([cbow.vocab_model.id2voc[i] for i in sorted_cosine_sims[row_idx,:]])
+        #cbow.save_model(options.save_path + str(e_idx) + '.json')
