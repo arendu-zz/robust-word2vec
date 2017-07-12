@@ -27,33 +27,49 @@ if __name__ == '__main__':
     opt= argparse.ArgumentParser(description="write program description here")
     #insert options here
     opt.add_argument('-v', action='store', dest='vocab_file', required = True)
-    opt.add_argument('-s', action='store', dest='save_path', required = True)
+    opt.add_argument('-s', action='store', dest='save_path', required = False, default = None)
     opt.add_argument('-t', action='store', dest='training_data', required = True)
-    opt.add_argument('-d', action='store', dest='dev_data', required = True)
+    opt.add_argument('-d', action='store', dest='dev_data', default = None, required = False)
     opt.add_argument('-e', action='store', dest='embed_size', type = int, required = True)
-    opt.add_argument('--bs', action='store', dest='batch_size', default = 128)
+    opt.add_argument('--bs', action='store', dest='batch_size', default = 512, type = int)
+    opt.add_argument('--epochs', action='store', dest='epochs', default = 10, type = int)
     opt.add_argument('-m', action='store', dest='model', help='cbow or skipgram', required = True)
     options = opt.parse_args()
     vocab = Vocab(options.vocab_file)
     X_full, Y_full = load_data(options.training_data, options.model)
-    X_dev, Y_dev = load_data(options.dev_data, options.model)
+    if options.dev_data is None:
+        t_idx = np.arange(X_full.shape[0])
+        np.random.shuffle(t_idx)
+        d_idx = t_idx[:int(0.1 * t_idx.shape[0])]
+        t_idx = t_idx[int(0.1 * t_idx.shape[0]):]
+        X_dev = X_full[d_idx,:]
+        Y_dev = Y_full[d_idx]
+        X_full = X_full[t_idx,:]
+        Y_full = Y_full[t_idx]
+    else:
+        X_dev, Y_dev = load_data(options.dev_data, options.model)
     print vocab.voc_dist.shape, X_full.shape, Y_full.shape
-    cbow = CBOW(vocab_model = vocab, batch_size = options.batch_size, context_size = X_full.shape[1], embed_size = options.embed_size, reg=0.0, optimize = 'sgd_clipped')
-    t_idx = np.arange(X_full.shape[0])
-    epochs = 10000
+    cbow = CBOW(vocab_model = vocab, batch_size = options.batch_size, context_size = X_full.shape[1], embed_size = options.embed_size, reg=0.0, optimize = 'rms')
+    epochs = options.epochs
     for e_idx in xrange(epochs):
+        t_idx = np.arange(X_full.shape[0])
         np.random.shuffle(t_idx)
         batches = np.array_split(t_idx, X_full.shape[0] / options.batch_size)
-        batch_idxs = batches[0]
-        #for b_idx, batch_idxs in enumerate(batches):
-        y_pred  = cbow.get_y_pred(X_full[batch_idxs,:])
-        #YY_ones = np.ones_like(Y_full[batch_idxs]).astype(np.int64)
-        _batch_loss  = cbow.do_update(1., X_full[batch_idxs,:], Y_full[batch_idxs])
-        #_batch_loss  = cbow.do_update(0.1, X_full[batch_idxs,:], YY_ones)
-        print _batch_loss
-        #cosine_sims = cbow.cosine_similarity()
-        #sorted_cosine_sims = np.argpartition(-cosine_sims, 10)
-        #sorted_cosine_sims = sorted_cosine_sims[:, :10]
-        #for row_idx in [1, 10, 100, 200, 500]:
-        #    print cbow.vocab_model.id2voc[row_idx], '\t:', ', '.join([cbow.vocab_model.id2voc[i] for i in sorted_cosine_sims[row_idx,:]])
-        #cbow.save_model(options.save_path + str(e_idx) + '.json')
+        ave_loss = []
+        for b_idx, batch_idxs in enumerate(batches):
+            _batch_loss  = cbow.do_update(0.01, X_full[batch_idxs,:], Y_full[batch_idxs])
+            #print e_idx, b_idx, _batch_loss[0]
+            ave_loss.append(_batch_loss[0])
+        print e_idx, 'train ave_loss:', np.mean(ave_loss)
+        ave_dev_loss = []
+        d_idx = np.arange(X_dev.shape[0])
+        batches = np.array_split(d_idx, X_dev.shape[0] / options.batch_size)
+        for b_idx, batch_idxs in enumerate(batches):
+            _dev_batch_loss = cbow.get_loss(X_dev[batch_idxs,:], Y_dev[batch_idxs])
+            ave_dev_loss.append(_dev_batch_loss[0][0])
+        print e_idx, 'dev ave_loss:', np.mean(ave_dev_loss)
+        if options.save_path is not None:
+            cbow.save_word_vecs(options.save_path + '.' + str(e_idx) + '.vecs')
+            cbow.save_model(options.save_path + '.' + str(e_idx) + '.model')
+        else:
+            pass

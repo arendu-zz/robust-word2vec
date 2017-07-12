@@ -127,6 +127,9 @@ class BaseModel(object):
     def load_model(self, load_path):
         pass
 
+    def fit(self, epochs, batche_size, X, Y, N = None, noise_dist = None, noise_sample_size = None):
+        raise NotImplementedError("training routine should be inside base class?")
+
 class CBOW(BaseModel):
     def __init__(self, vocab_model, batch_size, context_size, embed_size, saved_model = None, noise_sample_size = None, noise_dist = None, reg = 0.0, optimize ='rms'):
         BaseModel.__init__(self, 
@@ -186,6 +189,17 @@ class CBOW(BaseModel):
 
     def get_params(self,):
         return self.get_params_t()
+
+    def save_word_vecs(self, save_path):
+        w = codecs.open(save_path, 'w', 'utf-8')
+        win, wout = self.get_params()
+        for voc_id, voc in self.vocab_model.id2voc.items():
+            if voc_id == 0:
+                pass
+            else:
+                w.write(voc + ' ' + np.array2string(win[voc_id -1, :], separator = ' ', max_line_width = np.inf)[1:-1].strip() + '\n')
+        w.flush()
+        w.close()
 
     def load_model(self, load_path):
         sys.stderr.write('loading model' + load_path + '\n')
