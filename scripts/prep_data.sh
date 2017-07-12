@@ -8,6 +8,8 @@ FREQ=$4
 for DATA_TYPE in 'cbow' 'sg'
 do
     OUT_FILE=$OUT_CORPUS.$DATA_TYPE.txt
+    gshuf $OUT_FILE > $OUT_FILE.shuf
+    mv $OUT_FILE.shuf $OUT_FILE
     gsplit -n l/4  -a 1 -d $OUT_FILE $OUT_FILE.part
     cat $OUT_FILE.part0 > $OUT_FILE.train
     cat $OUT_FILE.part1 >> $OUT_FILE.train

@@ -13,9 +13,7 @@ reload(sys)
 sys.setdefaultencoding('utf-8')
 sys.stdout = codecs.getwriter('utf-8')(sys.stdout)
 
-START_SYM = '<SRT>'
-OOV = '<OOV>'
-END_SYM = '<END>'
+PAD_SYM = '<PAD>'
 
 if __name__ == '__main__':
     opt= argparse.ArgumentParser(description="write program description here")
@@ -37,8 +35,8 @@ if __name__ == '__main__':
     top_wordcounts = sorted(word2count.items(), key=lambda x: -x[1])
     top_wordcounts = top_wordcounts[:options.freq_cutoff]
     word_count = sum([c for w,c in top_wordcounts])
-    word2wordid = {START_SYM: 0, END_SYM: 1}
-    word2keepprob = {START_SYM: 1., END_SYM: 1.}
+    word2wordid = {PAD_SYM: 0}
+    word2keepprob = {PAD_SYM: 1.}
     for top_w, top_c in top_wordcounts[:options.freq_cutoff]:
         word2wordid[top_w] = word2wordid.get(top_w, len(word2wordid))
         top_z = float(top_c) / float(word_count)
@@ -62,10 +60,10 @@ if __name__ == '__main__':
                 if word2wordid.get(w, None) is not None:
                     context_left = words[max(0, w_idx - options.window_size): w_idx] 
                     context_left = [cl for cl in context_left]
-                    context_left = context_left if len(context_left) == options.window_size else ([START_SYM] * (options.window_size - len(context_left))) + context_left
+                    context_left = context_left if len(context_left) == options.window_size else ([PAD_SYM] * (options.window_size - len(context_left))) + context_left
                     context_right = words[w_idx + 1: w_idx  + options.window_size + 1] 
                     context_right = [cr for cr in context_right]
-                    context_right = context_right if len(context_right) == options.window_size else context_right + ([END_SYM] * (options.window_size - len(context_right)))
+                    context_right = context_right if len(context_right) == options.window_size else context_right + ([PAD_SYM] * (options.window_size - len(context_right)))
                     int_context_left = [str(word2wordid[cl]) for cl in context_left]
                     int_context_right = [str(word2wordid[cl]) for cl in context_right]
                     if options.int_data:
@@ -73,13 +71,13 @@ if __name__ == '__main__':
                     else:
                         cbow_data.write(' '.join(context_left + context_right) + ' ' + w.strip().lower() + '\n')
                     for c_idx, c in enumerate(context_left, -options.window_size): #context_right:
-                        if c not in [START_SYM, END_SYM]:
+                        if c != PAD_SYM:
                             if options.int_data:
                                 skipgram_data.write(str(word2wordid[w]) + ' ' + str(word2wordid[c]) + ' '+ str(c_idx) + '\n')
                             else:
                                 skipgram_data.write(w + ' ' + c + ' '+ str(c_idx) + '\n')
                     for c_idx, c in enumerate(context_right, 1): 
-                        if c not in [START_SYM, END_SYM]:
+                        if c != PAD_SYM:
                             if options.int_data:
                                 skipgram_data.write(str(word2wordid[w]) + ' ' + str(word2wordid[c]) + ' '+ str(c_idx) + '\n')
                             else:

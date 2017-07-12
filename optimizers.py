@@ -12,12 +12,20 @@ else:
     floatX = np.float64
     intX = np.int64
 
+def adagrad(cost, params, learning_rate, epsilon = 1e-6):
+    updates = []
+    for param in params:
+        Gt = theano.shared(np.zeros(param.get_value(borrow = True).shape, dtype=floatX), broadcastable = param.broadcastable)
+        grad = T.grad(cost, param)
+        updates.append((Gt, Gt + grad ** 2))
+        ada_grad = (learning_rate * grad) / T.sqrt(Gt + epsilon)
+        updates.append((param, param - ada_grad))
+    return updates
 
 def rmsprop(cost, params, learning_rate, rho=0.9, epsilon=1e-6):
     updates = list()
     for param in params:
-        accu = theano.shared(np.zeros(param.get_value(borrow=True).shape, dtype=dtype),
-              broadcastable=param.broadcastable)
+        accu = theano.shared(np.zeros(param.get_value(borrow=True).shape, dtype=dtype),broadcastable=param.broadcastable)
         grad = T.grad(cost, param)
         accu_new = rho * accu + (1 - rho) * grad ** 2
         updates.append((accu, accu_new))
@@ -25,6 +33,20 @@ def rmsprop(cost, params, learning_rate, rho=0.9, epsilon=1e-6):
         #unclipped_l2norm = T.sqrt(T.sum(T.sqr(unclipped)))
         #clipped_grad = unclipped * (1.0 / unclipped_l2norm)
         updates.append((param, param - (learning_rate * unclipped_grad)))
+    return updates
+
+
+def rmsprop_clipped(cost, params, learning_rate, rho=0.9, epsilon=1e-6):
+    updates = list()
+    for param in params:
+        accu = theano.shared(np.zeros(param.get_value(borrow=True).shape, dtype=dtype),broadcastable=param.broadcastable)
+        grad = T.grad(cost, param)
+        accu_new = rho * accu + (1 - rho) * grad ** 2
+        updates.append((accu, accu_new))
+        unclipped_grad = grad / T.sqrt(accu_new + epsilon)
+        unclipped_l2norm = T.sqrt(T.sum(T.sqr(unclipped_grad)))
+        clipped_grad = unclipped_grad * (1.0 / unclipped_l2norm)
+        updates.append((param, param - (learning_rate * clipped_grad)))
     return updates
 
 def sgd_clipped(cost, params, learning_rate):
@@ -54,10 +76,11 @@ def momentum(cost, params, learning_rate, momentum=0.9, type='nesterov'):
             updates.append((param, x))
     return updates
 
-def adam(cost, params, learning_rate=0.0002, b1=0.1, b2=0.001, e=1e-8):
+#def adam(cost, params, learning_rate=0.0002, b1=0.1, b2=0.001, e=1e-8):
+def adam(cost, params, learning_rate, b1=0.1, b2=0.001, e=1e-8):
     lr = learning_rate
     updates = []
-    grads = T.grad(cost, params)
+    grads = [T.grad(cost, param) for param in params]
     i = theano.shared(floatX(0.))
     i_t = i + 1.
     fix1 = 1. - (1. - b1)**i_t
