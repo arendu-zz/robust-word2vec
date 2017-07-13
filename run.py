@@ -1,6 +1,8 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 from models import CBOW, Vocab, SkipGram
+from datetime import datetime
+import sys
 import codecs
 import numpy as np
 import argparse
@@ -61,9 +63,16 @@ if __name__ == '__main__':
         model = CBOW(vocab_model = vocab, batch_size = options.batch_size, context_size = X_full.shape[1], embed_size = options.embed_size, reg=0.0, optimize = options.optimizer)
     else:
         model = SkipGram(vocab_model = vocab, batch_size = options.batch_size, embed_size = options.embed_size, reg=0.0, optimize = options.optimizer)
+    print datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+    sys.stdout.flush()
     for e_idx in xrange(options.epochs):
-        print e_idx, 'training loss  :', model.fit(batch_size = options.batch_size, learning_rate = 0.01, X = X_full, Y = Y_full)
-        print e_idx, 'validation loss:', model.loss(batch_size = options.batch_size, X = X_dev, Y = Y_dev)
+        fit_loss = model.fit(batch_size = options.batch_size, learning_rate = 0.01, X = X_full, Y = Y_full)
+        print e_idx, 'training loss  :', fit_loss, datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+        sys.stdout.flush()
+
+        validation_loss = model.loss(batch_size = options.batch_size, X = X_dev, Y = Y_dev)
+        print e_idx, 'validation loss:', validation_loss, datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+        sys.stdout.flush()
         if options.save_path is not None:
             model.save_word_vecs(options.save_path + '.' + str(e_idx) + '.vecs')
             model.save_model(options.save_path + '.' + str(e_idx) + '.model')
