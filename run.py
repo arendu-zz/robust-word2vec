@@ -13,7 +13,7 @@ def load_data(data_file, data_type = 'cbow'):
                 int_line = [int(i) for i in line.strip().split()]
                 x_full.append(int_line[:-1])
                 y_full.append(int_line[-1])
-            elif data_type == 'skipgram':
+            elif data_type == 'sg':
                 int_line = [int(i) for i in line.strip().split()]
                 x_full.append(int_line[0])
                 y_full.append(int_line[1])
@@ -32,7 +32,7 @@ if __name__ == '__main__':
     opt.add_argument('-e', action='store', dest='embed_size', type = int, required = True)
     opt.add_argument('--bs', action='store', dest='batch_size', default = 512, type = int)
     opt.add_argument('--epochs', action='store', dest='epochs', default = 10, type = int)
-    opt.add_argument('-m', action='store', dest='model', help='cbow or skipgram', choices = ['cbow', 'skipgram'], required = False, default = 'cbow')
+    opt.add_argument('-m', action='store', dest='model', help='cbow or sg', choices = ['cbow', 'sg'], required = False, default = 'cbow')
     opt.add_argument('-o', action='store', dest='optimizer', help='optimizer to use', choices = ['sgd', 'sgd_clipped', 'rms', 'rms_clipped'], required = False, default = 'rms')
     options = opt.parse_args()
     print options
@@ -48,7 +48,7 @@ if __name__ == '__main__':
             Y_dev = Y_full[d_idx]
             X_full = X_full[t_idx,:]
             Y_full = Y_full[t_idx]
-        elif options.model == 'skipgram':
+        elif options.model == 'sg':
             X_dev = X_full[d_idx]
             Y_dev = Y_full[d_idx]
             X_full = X_full[t_idx]

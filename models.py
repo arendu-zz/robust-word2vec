@@ -158,7 +158,7 @@ class SkipGram(BaseModel):
         self.__y_pred__ = theano.function(inputs = [X], outputs = y_pred)
         self.__model_losses__ = theano.function(inputs = [X, Y], outputs = model_losses)
         self.__loss__ = theano.function(inputs = [X, Y], outputs = [loss, model_loss, reg_loss])
-        self.__params__ = theano.function(inputs = [], outputs = self.params) 
+        self.__params__ = theano.function(inputs = [], outputs = [T.as_tensor_variable(p) for p in self.params]) 
         self.__do_update__ = theano.function(inputs = [lr, X, Y], outputs = [loss, model_loss, reg_loss], updates = self._update(loss, self.params, lr)) 
 
     def loss(self, batch_size, X, Y):
@@ -218,7 +218,7 @@ class CBOW(BaseModel):
         self.__y_pred__ = theano.function(inputs = [X], outputs = y_pred)
         self.__model_losses__ = theano.function(inputs = [X, Y], outputs = model_losses)
         self.__loss__ = theano.function(inputs = [X, Y], outputs = [loss, model_loss, reg_loss])
-        self.__params__ = theano.function(inputs = [], outputs = self.params) 
+        self.__params__ = theano.function(inputs = [], outputs = [T.as_tensor_variable(p) for p in self.params]) 
         self.__do_update__ = theano.function(inputs = [lr, X, Y], outputs = [loss, model_loss, reg_loss], updates = self._update(loss, self.params, lr)) 
 
     def loss(self, batch_size, X, Y):
