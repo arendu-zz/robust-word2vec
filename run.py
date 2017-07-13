@@ -7,21 +7,27 @@ import codecs
 import numpy as np
 import argparse
 def load_data(data_file, data_type = 'cbow'):
+    print 'loading data', datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+    sys.stdout.flush()
     x_full = []
     y_full = []
     with codecs.open(data_file, 'r', 'utf-8') as _file:
         for line in _file:
             if data_type == 'cbow':
                 int_line = [int(i) for i in line.strip().split()]
+                assert len(int_line) > 3
                 x_full.append(int_line[:-1])
                 y_full.append(int_line[-1])
             elif data_type == 'sg':
                 int_line = [int(i) for i in line.strip().split()]
+                assert len(int_line) == 3
                 x_full.append(int_line[0])
                 y_full.append(int_line[1])
             else:
                 raise BaseException("unknown data_type" + data_type)
-    return np.asarray(x_full), np.asarray(y_full)
+    x_full = np.asarray(x_full)
+    y_full = np.asarray(y_full)
+    return x_full, y_full
 
 
 if __name__ == '__main__':
@@ -63,7 +69,7 @@ if __name__ == '__main__':
         model = CBOW(vocab_model = vocab, batch_size = options.batch_size, context_size = X_full.shape[1], embed_size = options.embed_size, reg=0.0, optimize = options.optimizer)
     else:
         model = SkipGram(vocab_model = vocab, batch_size = options.batch_size, embed_size = options.embed_size, reg=0.0, optimize = options.optimizer)
-    print datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+    print 'starting', datetime.now().strftime('%Y-%m-%d %H:%M:%S')
     sys.stdout.flush()
     for e_idx in xrange(options.epochs):
         fit_loss = model.fit(batch_size = options.batch_size, learning_rate = 0.01, X = X_full, Y = Y_full)
