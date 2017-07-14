@@ -114,16 +114,16 @@ class BaseModel(object):
         return T.nnet.categorical_crossentropy(O, Y) #(batch_size)
 
     def __nce_loss__(self, O, Y, N):
-        P_W = O[T.arange(O.shape[0]),Y] #(batch_size,)
-        Q_W = self.noise_dist_T[Y] #(batch_size,)
-        P_C1_W = P_W / (self._eps + P_W + self.noise_sample_size * Q_W) #(batch_size,)  
-        log_P_C1_W = T.log(P_C1_W) #(batch_size,)
+        p_w = O[T.arange(O.shape[0]),Y] #(batch_size,)
+        q_w = self.noise_dist_T[Y] #(batch_size,)
+        p_c1_w = p_w / (self._eps + p_w + self.noise_sample_size * q_w) #(batch_size,)  
+        log_p_c1_w = T.log(p_c1_w) #(batch_size,)
         # w is the next word in the training data
-        P_WN = O[:, N] #(batch_size, noise_sample_size)
-        Q_WN = self.noise_dist_T[N] #(noise_sample_size,)
-        P_C1_WN = P_WN / (self._eps + P_WN + self.noise_sample_size * Q_WN) #(batch_size, noise_sample_size)
-        sum_k_log_P_C0_WN = T.log(1. - P_C1_WN).sum(axis = 1) #(batch_size,)
-        return -(log_P_C1_W + sum_k_log_P_C0_WN) #(batch_size,)
+        p_wn = O[:, N] #(batch_size, noise_sample_size)
+        q_wn = self.noise_dist_T[N] #(noise_sample_size,)
+        p_c1_wn = p_wn / (self._eps + p_wn + self.noise_sample_size * q_wn) #(batch_size, noise_sample_size)
+        sum_k_log_p_c0_wn = T.log(1. - p_c1_wn).sum(axis = 1) #(batch_size,)
+        return -(log_p_c1_w + sum_k_log_p_c0_wn) #(batch_size,)
 
     def get_params(self,):
         return self.__params__()
