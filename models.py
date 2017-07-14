@@ -110,10 +110,10 @@ class BaseModel(object):
         f.close()
         return _params
 
-    def __xent_loss__(self, Y_out, Y):
+    def __xent_loss__(self, Y_pred, Y):
         return T.nnet.categorical_crossentropy(Y_pred, Y) #(batch_size)
 
-    def __nce_loss__(self, T_out, Y, N):
+    def __nce_loss__(self, Y_out, Y, N):
         p_w = Y_out[T.arange(Y_out.shape[0]),Y] #(batch_size,)
         q_w = self.noise_dist_T[Y] #(batch_size,)
         p_c1_w = p_w / (self._eps + p_w + self.noise_sample_size * q_w) #(batch_size,)  
@@ -152,14 +152,14 @@ class SkipGram(BaseModel):
         y_out = W_in[X].dot(W_context) #(batch_size, vocab_model.size)
         self.__params__ = theano.function(inputs = [], outputs = [T.as_tensor_variable(p) for p in self.params]) 
         if self.noise_sample_size > 0:
-            model_losses_nce = self.__nce_loss__(y_out, Y, N) #T.nnet.categorical_crossentropy(y_pred, Y) #(batch_size,)
+            model_losses_nce = self.__nce_loss__(y_out, Y, N) #(batch_size,)
             loss_nce = model_losses_nce.mean()
             self.__loss_nce__ = theano.function(inputs = [X, Y, N], outputs = loss_nce)
             self.__do_update_nce__ = theano.function(inputs = [lr, X, Y, N], outputs = loss_nce, updates = self._update(loss_nce, self.params, lr)) 
         else:
             y_pred = T.nnet.softmax(y_out)  #(batch_size, vocab_model.size)
             self.__y_pred__ = theano.function(inputs = [X], outputs = y_pred)
-            model_losses = self.__xent_loss__(y_pred, Y) #T.nnet.categorical_crossentropy(y_pred, Y) #(batch_size,)
+            model_losses = self.__xent_loss__(y_pred, Y) #(batch_size,)
             loss = model_losses.mean()
             self.__loss__ = theano.function(inputs = [X, Y], outputs = loss)
             self.__do_update__ = theano.function(inputs = [lr, X, Y], outputs = loss, updates = self._update(loss, self.params, lr)) 
