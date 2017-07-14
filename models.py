@@ -20,6 +20,7 @@ sys.stdout = codecs.getwriter('utf-8')(sys.stdout)
 START_SYM = '<SRT>'
 END_SYM = '<END>'
 OOV = '<OOV>'
+VERBOSE = False
 
 if theano.config.floatX == 'float32':
     intX = np.int32
@@ -32,7 +33,7 @@ def _get_weights(name, shape1, shape2, init='rand'):
     if init == 'rand':
         x = np.random.rand(shape1, shape2) 
     elif init == 'normal':
-        x = np.random.normal(0., 0.1, (shape1, shape2))
+        x = np.random.normal(0., 0.01, (shape1, shape2))
     elif init == 'nestrov':
         x = np.random.uniform(-np.sqrt(1. / shape2), np.sqrt(1. / shape2), (shape1, shape2))
     else:
@@ -111,18 +112,22 @@ class BaseModel(object):
         return _params
 
     def __xent_loss__(self, Y_pred, Y):
+        Y_pred = T.clip(Y_pred, floatX(self._eps), floatX(1.0 - self._eps))
         return T.nnet.categorical_crossentropy(Y_pred, Y) #(batch_size)
 
     def __nce_loss__(self, Y_out, Y, N):
         p_w = Y_out[T.arange(Y_out.shape[0]),Y] #(batch_size,)
         q_w = self.noise_dist_T[Y] #(batch_size,)
-        p_c1_w = p_w / (self._eps + p_w + self.noise_sample_size * q_w) #(batch_size,)  
+        p_c1_w = p_w / (p_w + self.noise_sample_size * q_w) #(batch_size,)  
+        p_c1_w = T.clip(p_c1_w, floatX(self._eps), floatX(1.0 - self._eps))
         log_p_c1_w = T.log(p_c1_w) #(batch_size,)
-        # w is the next word in the training data
+
         p_wn = Y_out[:, N] #(batch_size, noise_sample_size)
         q_wn = self.noise_dist_T[N] #(noise_sample_size,)
-        p_c1_wn = p_wn / (self._eps + p_wn + self.noise_sample_size * q_wn) #(batch_size, noise_sample_size)
-        sum_k_log_p_c0_wn = T.log(1. - p_c1_wn).sum(axis = 1) #(batch_size,)
+        p_c1_wn = p_wn / (p_wn + self.noise_sample_size * q_wn) #(batch_size, noise_sample_size)
+        p_c0_wn = floatX(1.) - p_c1_wn
+        p_c0_wn = T.clip(p_c0_wn, floatX(self._eps), floatX(1.0 - self._eps))
+        sum_k_log_p_c0_wn = T.log(p_c0_wn).sum(axis = 1) #(batch_size,)
         return -(log_p_c1_w + sum_k_log_p_c0_wn) #(batch_size,)
 
     def get_params(self,):
@@ -174,6 +179,10 @@ class SkipGram(BaseModel):
                 _batch_loss  = self.__loss_nce__(X[batch_idxs], Y[batch_idxs], N)
             else:
                 _batch_loss  = self.__loss__(X[batch_idxs], Y[batch_idxs])
+            if np.isnan(_batch_loss):
+                raise Exception("loss is nan!")
+            if VERBOSE:
+                print _batch_loss.eval()
             ave_dev_loss.append(_batch_loss)
         return np.mean(ave_dev_loss)
 
@@ -188,6 +197,10 @@ class SkipGram(BaseModel):
                 _batch_loss  = self.__do_update_nce__(learning_rate, X[batch_idxs], Y[batch_idxs], N)
             else:
                 _batch_loss  = self.__do_update__(learning_rate, X[batch_idxs], Y[batch_idxs])
+            if np.isnan(_batch_loss):
+                raise Exception("loss is nan!")
+            if VERBOSE:
+                print _batch_loss.eval()
             ave_loss.append(_batch_loss)
             #if b_idx % 10  == 0:
             #    sys.stderr.write('-')
@@ -245,6 +258,10 @@ class CBOW(BaseModel):
                 _batch_loss  = self.__loss_nce__(X[batch_idxs,:], Y[batch_idxs], N)
             else:
                 _batch_loss = self.__loss__(X[batch_idxs,:], Y[batch_idxs])
+            if np.isnan(_batch_loss):
+                raise Exception("loss is nan!")
+            if VERBOSE:
+                print _batch_loss.eval()
             ave_dev_loss.append(_batch_loss)
         return np.mean(ave_dev_loss)
 
@@ -259,11 +276,11 @@ class CBOW(BaseModel):
                 _batch_loss  = self.__do_update_nce__(learning_rate, X[batch_idxs,:], Y[batch_idxs], N)
             else:
                 _batch_loss  = self.__do_update__(learning_rate, X[batch_idxs,:], Y[batch_idxs])
+            if np.isnan(_batch_loss):
+                raise Exception("loss is nan!")
+            if VERBOSE:
+                print _batch_loss.eval()
             ave_loss.append(_batch_loss)
-            #if b_idx % 10  == 0:
-            #    sys.stderr.write('-')
-            #else:
-            #    sys.stderr.write('.')
         return np.mean(ave_loss)
 
 class Vocab(object):

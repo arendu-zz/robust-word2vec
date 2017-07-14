@@ -3,6 +3,7 @@
 from models import CBOW, Vocab, SkipGram
 from datetime import datetime
 import sys
+import theano
 import codecs
 import numpy as np
 import argparse
@@ -37,13 +38,13 @@ if __name__ == '__main__':
     opt.add_argument('-t', action='store', dest='training_data', required = True)
     opt.add_argument('-d', action='store', dest='dev_data', default = None, required = False)
     opt.add_argument('-e', action='store', dest='embed_size', type = int, required = True)
-    opt.add_argument('--bs', action='store', dest='batch_size', default = 512, type = int)
+    opt.add_argument('--bs', action='store', dest='batch_size', default = 2048, type = int)
     opt.add_argument('--nce', action='store', dest='noise_sample_size', default = 0, type = int)
-    opt.add_argument('--epochs', action='store', dest='epochs', default = 10, type = int)
+    opt.add_argument('--epochs', action='store', dest='epochs', default = 5, type = int)
     opt.add_argument('-m', action='store', dest='model', help='cbow or sg', choices = ['cbow', 'sg'], required = False, default = 'cbow')
     opt.add_argument('-o', action='store', dest='optimizer', help='optimizer to use', choices = ['sgd', 'sgd_clipped', 'rms', 'rms_clipped'], required = False, default = 'rms')
     options = opt.parse_args()
-    print options
+    print 'run options:', options
     vocab = Vocab(options.vocab_file)
     X_full, Y_full = load_data(options.training_data, options.model)
     if options.dev_data is None:
@@ -81,7 +82,7 @@ if __name__ == '__main__':
 
     print 'starting', datetime.now().strftime('%Y-%m-%d %H:%M:%S')
     sys.stdout.flush()
-    learning_rate = 0.01 if options.model == 'cbow' else 0.001
+    learning_rate = 0.001 if options.model == 'cbow' else 0.0001
     for e_idx in xrange(options.epochs):
         fit_loss = model.fit(batch_size = options.batch_size, learning_rate = learning_rate, X = X_full, Y = Y_full)
         print e_idx, 'training loss  :', fit_loss, datetime.now().strftime('%Y-%m-%d %H:%M:%S')
