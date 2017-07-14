@@ -11,20 +11,19 @@ def load_data(data_file, data_type = 'cbow'):
     sys.stdout.flush()
     x_full = []
     y_full = []
-    with codecs.open(data_file, 'r', 'utf-8') as _file:
-        for line in _file:
-            if data_type == 'cbow':
-                int_line = [int(i) for i in line.strip().split()]
-                assert len(int_line) > 3
-                x_full.append(int_line[:-1])
-                y_full.append(int_line[-1])
-            elif data_type == 'sg':
-                int_line = [int(i) for i in line.strip().split()]
-                assert len(int_line) == 3
-                x_full.append(int_line[0])
-                y_full.append(int_line[1])
-            else:
-                raise BaseException("unknown data_type" + data_type)
+    for line in codecs.open(data_file, 'r', 'utf-8').readlines():
+        if data_type == 'cbow':
+            int_line = [int(i) for i in line.strip().split()]
+            assert len(int_line) > 3
+            x_full.append(int_line[:-1])
+            y_full.append(int_line[-1])
+        elif data_type == 'sg':
+            int_line = [int(i) for i in line.strip().split()]
+            assert len(int_line) == 3
+            x_full.append(int_line[0])
+            y_full.append(int_line[1])
+        else:
+            raise BaseException("unknown data_type" + data_type)
     x_full = np.asarray(x_full)
     y_full = np.asarray(y_full)
     return x_full, y_full
@@ -39,6 +38,7 @@ if __name__ == '__main__':
     opt.add_argument('-d', action='store', dest='dev_data', default = None, required = False)
     opt.add_argument('-e', action='store', dest='embed_size', type = int, required = True)
     opt.add_argument('--bs', action='store', dest='batch_size', default = 512, type = int)
+    opt.add_argument('--nce', action='store', dest='noise_sample_size', default = 0, type = int)
     opt.add_argument('--epochs', action='store', dest='epochs', default = 10, type = int)
     opt.add_argument('-m', action='store', dest='model', help='cbow or sg', choices = ['cbow', 'sg'], required = False, default = 'cbow')
     opt.add_argument('-o', action='store', dest='optimizer', help='optimizer to use', choices = ['sgd', 'sgd_clipped', 'rms', 'rms_clipped'], required = False, default = 'rms')
@@ -65,14 +65,25 @@ if __name__ == '__main__':
             raise BaseException("unknown model type")
     else:
         X_dev, Y_dev = load_data(options.dev_data, options.model)
+    print 'building graph', datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+    sys.stdout.flush()
     if options.model == 'cbow':
-        model = CBOW(vocab_model = vocab, batch_size = options.batch_size, context_size = X_full.shape[1], embed_size = options.embed_size, reg=0.0, optimize = options.optimizer)
+        noise_dist = np.ones(vocab.size) * (1.0 / float(vocab.size))
+        model = CBOW(vocab_model = vocab, batch_size = options.batch_size, context_size = X_full.shape[1], embed_size = options.embed_size, 
+                noise_sample_size= options.noise_sample_size, noise_dist = noise_dist,
+                reg=0.0, optimize = options.optimizer)
+
     else:
-        model = SkipGram(vocab_model = vocab, batch_size = options.batch_size, embed_size = options.embed_size, reg=0.0, optimize = options.optimizer)
+        noise_dist = np.ones(vocab.size) * (1.0 / float(vocab.size))
+        model = SkipGram(vocab_model = vocab, batch_size = options.batch_size, embed_size = options.embed_size, 
+                noise_sample_size= options.noise_sample_size, noise_dist = noise_dist,
+                reg=0.0, optimize = options.optimizer)
+
     print 'starting', datetime.now().strftime('%Y-%m-%d %H:%M:%S')
     sys.stdout.flush()
+    learning_rate = 0.01 if options.model == 'cbow' else 0.001
     for e_idx in xrange(options.epochs):
-        fit_loss = model.fit(batch_size = options.batch_size, learning_rate = 0.01, X = X_full, Y = Y_full)
+        fit_loss = model.fit(batch_size = options.batch_size, learning_rate = learning_rate, X = X_full, Y = Y_full)
         print e_idx, 'training loss  :', fit_loss, datetime.now().strftime('%Y-%m-%d %H:%M:%S')
         sys.stdout.flush()
 
