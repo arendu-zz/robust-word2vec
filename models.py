@@ -245,7 +245,7 @@ class CBOW(BaseModel):
             self.__do_update__ = theano.function(inputs = [lr, X, Y], outputs = loss, updates = self._update(loss, self.params, lr)) 
 
     def loss(self, batch_size, X, Y):
-        ave_dev_loss = []
+        ave_dev_loss = 0. 
         t_idx = np.arange(X.shape[0])
         batches = np.array_split(t_idx, X.shape[0] / batch_size)
         for b_idx, batch_idxs in enumerate(batches):
