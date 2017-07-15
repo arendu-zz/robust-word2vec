@@ -43,7 +43,7 @@ def _get_weights(name, shape1, shape2, init='rand'):
 class BaseModel(object):
     __metaclass__ = ABCMeta
 
-    def __init__(self, vocab_model, batch_size, embed_size, saved_model = None, noise_sample_size = 0, noise_dist = None, reg = 0.0, optimize ='rms'):
+    def __init__(self, vocab_model, batch_size, embed_size, saved_model = None, noise_sample_size = 0, noise_dist = None, reg = 0.0, optimize ='rms', shared_X = None, shared_Y = None):
         self.vocab_model = vocab_model
         self.batch_size = batch_size
         self.embed_size = embed_size
@@ -58,6 +58,7 @@ class BaseModel(object):
         self._eps = 1e-8
         self.params = []
         self.reg_params = []
+        self.shared_data = []
         self.set_optimizer(optimize)
         if saved_model is None:
             W_in = _get_weights('W_IN', self.vocab_model.size, self.embed_size, 'normal')
@@ -66,10 +67,17 @@ class BaseModel(object):
             W_in, W_context = self.load_model(saved_model)
         self.params = [W_in, W_context]
         self.reg_params = [W_in, W_context]
+        if shared_X is not None and shared_Y is not None:
+            self.set_shared_data(shared_X, shared_Y)
         assert isinstance(self.reg, float)
         assert isinstance(self.noise_sample_size, int)
         assert isinstance(self.noise_dist, np.ndarray) or self.noise_dist is None
         assert isinstance(self.vocab_model, Vocab)
+
+    def set_shared_data(self, X, Y):
+        shared_X = theano.shared(np.int64(X), 'shared_X')
+        shared_Y = theano.shared(np.int64(Y), 'shared_Y')
+        self.shared_data = [shared_X, shared_Y]
 
     def set_optimizer(self, optimizer):
         if optimizer  == 'adam':
@@ -134,7 +142,7 @@ class BaseModel(object):
         return self.__params__()
 
 class SkipGram(BaseModel):
-    def __init__(self, vocab_model, batch_size, embed_size, saved_model = None, noise_sample_size = None, noise_dist = None, reg = 0.0, optimize = 'rms'):
+    def __init__(self, vocab_model, batch_size, embed_size, saved_model = None, noise_sample_size = None, noise_dist = None, reg = 0.0, optimize = 'rms', shared_X = None, shared_Y = None):
         BaseModel.__init__(self, 
                 vocab_model = vocab_model,
                 batch_size = batch_size, 
@@ -142,8 +150,35 @@ class SkipGram(BaseModel):
                 noise_sample_size = noise_sample_size, 
                 noise_dist = noise_dist,
                 reg = reg, 
-                optimize = optimize)
-        self.__computation_graph__()
+                optimize = optimize,
+                shared_X = shared_X,
+                shared_Y = shared_Y)
+        if len(self.shared_data) > 0:
+            self.__shared_input_computation_graph__()
+        else:
+            self.__computation_graph__()
+
+    def __shared_input_computation_graph__(self,):
+        lr = T.scalar('lr', dtype=theano.config.floatX) #for learning rates
+        N = T.lvector('N') #(noise_size)
+        W_in = self.params[0] 
+        W_context = self.params[1] 
+        X = self.shared_data[0]
+        Y = self.shared_data[1]
+        y_out = W_in[X].dot(W_context) #(batch_size, vocab_model.size)
+        self.__params__ = theano.function(inputs = [], outputs = [T.as_tensor_variable(p) for p in self.params]) 
+        if self.noise_sample_size > 0:
+            model_losses_nce = self.__nce_loss__(y_out, Y, N) #(batch_size,)
+            loss_nce = model_losses_nce.mean()
+            self.__loss_nce__ = theano.function(inputs = [N], outputs = loss_nce)
+            self.__do_update_nce__ = theano.function(inputs = [lr, N], outputs = loss_nce, updates = self._update(loss_nce, self.params, lr)) 
+        else:
+            y_pred = T.nnet.softmax(y_out)  #(batch_size, vocab_model.size)
+            self.__y_pred__ = theano.function(inputs = [], outputs = y_pred)
+            model_losses = self.__xent_loss__(y_pred, Y) #(batch_size,)
+            loss = model_losses.mean()
+            self.__loss__ = theano.function(inputs = [], outputs = loss)
+            self.__do_update__ = theano.function(inputs = [lr], outputs = loss, updates = self._update(loss, self.params, lr)) 
 
     def __computation_graph__(self,):
         lr = T.scalar('lr', dtype=theano.config.floatX) #for learning rates
@@ -153,7 +188,6 @@ class SkipGram(BaseModel):
 
         W_in = self.params[0] 
         W_context = self.params[1] 
-
         y_out = W_in[X].dot(W_context) #(batch_size, vocab_model.size)
         self.__params__ = theano.function(inputs = [], outputs = [T.as_tensor_variable(p) for p in self.params]) 
         if self.noise_sample_size > 0:
