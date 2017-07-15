@@ -82,7 +82,8 @@ if __name__ == '__main__':
 
     print 'starting', datetime.now().strftime('%Y-%m-%d %H:%M:%S')
     sys.stdout.flush()
-    learning_rate = 0.001 if options.model == 'cbow' else 0.0001
+    learning_rate = 0.01 if options.model == 'cbow' else 0.001
+    learning_rate = (0.1 * learning_rate) if options.noise_sample_size > 0 else learning_rate 
     for e_idx in xrange(options.epochs):
         fit_loss = model.fit(batch_size = options.batch_size, learning_rate = learning_rate, X = X_full, Y = Y_full)
         print e_idx, 'training loss  :', fit_loss, datetime.now().strftime('%Y-%m-%d %H:%M:%S')

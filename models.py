@@ -204,7 +204,7 @@ class SkipGram(BaseModel):
             self.__do_update__ = theano.function(inputs = [lr, X, Y], outputs = loss, updates = self._update(loss, self.params, lr)) 
 
     def loss(self, batch_size, X, Y):
-        ave_dev_loss = []
+        ave_dev_loss = 0. 
         t_idx = np.arange(X.shape[0])
         batches = np.array_split(t_idx, X.shape[0] / batch_size)
         for b_idx, batch_idxs in enumerate(batches):
@@ -217,14 +217,14 @@ class SkipGram(BaseModel):
                 raise Exception("loss is nan!")
             if VERBOSE:
                 print _batch_loss.eval()
-            ave_dev_loss.append(_batch_loss)
-        return np.mean(ave_dev_loss)
+            ave_dev_loss += _batch_loss
+        return ave_dev_loss / len(batches)
 
     def fit(self, batch_size, learning_rate, X, Y, nce = False):
         t_idx = np.arange(X.shape[0])
         np.random.shuffle(t_idx)
         batches = np.array_split(t_idx, X.shape[0] / batch_size)
-        ave_loss = []
+        ave_loss = 0.
         for b_idx, batch_idxs in enumerate(batches):
             if self.noise_dist is not None and self.noise_sample_size > 0:
                 N = np.random.choice(self.vocab_model.size, self.noise_sample_size, p = self.noise_dist, replace = False)
@@ -235,13 +235,8 @@ class SkipGram(BaseModel):
                 raise Exception("loss is nan!")
             if VERBOSE:
                 print _batch_loss.eval()
-            ave_loss.append(_batch_loss)
-            #if b_idx % 10  == 0:
-            #    sys.stderr.write('-')
-            #else:
-            #    sys.stderr.write('.')
-            #sys.stderr.flush()
-        return np.mean(ave_loss)
+            ave_loss += _batch_loss
+        return ave_loss / len(batches)
 
 
 class CBOW(BaseModel):
@@ -266,7 +261,8 @@ class CBOW(BaseModel):
         W_in = self.params[0] 
         W_context = self.params[1] 
 
-        w_in_x_sum = W_in[X,:].sum(axis = 1) #T.sum(w_in_x, axis = 1) #(batch_size, hidden_state) # selects the rows in W_in, per row in X, then sums those rows
+        w_in_x_sum = W_in[X,:].mean(axis = 1) #(batch_size, hidden_state) # selects the rows in W_in, per row in X, then means those rows
+        #the paper says you sum them but gensim takes the means(gensim/gensim/models/word2vec.py -> def train_batch_cbow -> line~195 (dont think it changes the math)
         y_out = w_in_x_sum.dot(W_context) #(batch_size, vocab_model.size)
         self.__params__ = theano.function(inputs = [], outputs = [T.as_tensor_variable(p) for p in self.params]) 
         if self.noise_sample_size > 0:
@@ -283,7 +279,7 @@ class CBOW(BaseModel):
             self.__do_update__ = theano.function(inputs = [lr, X, Y], outputs = loss, updates = self._update(loss, self.params, lr)) 
 
     def loss(self, batch_size, X, Y):
-        ave_dev_loss = []
+        ave_dev_loss = 0. 
         t_idx = np.arange(X.shape[0])
         batches = np.array_split(t_idx, X.shape[0] / batch_size)
         for b_idx, batch_idxs in enumerate(batches):
@@ -296,14 +292,14 @@ class CBOW(BaseModel):
                 raise Exception("loss is nan!")
             if VERBOSE:
                 print _batch_loss.eval()
-            ave_dev_loss.append(_batch_loss)
-        return np.mean(ave_dev_loss)
+            ave_dev_loss += _batch_loss
+        return ave_dev_loss / len(batches)
 
     def fit(self, batch_size, learning_rate, X, Y):
         t_idx = np.arange(X.shape[0])
         np.random.shuffle(t_idx)
         batches = np.array_split(t_idx, X.shape[0] / batch_size)
-        ave_loss = []
+        ave_loss = 0.
         for b_idx, batch_idxs in enumerate(batches):
             if self.noise_dist is not None and self.noise_sample_size > 0:
                 N = np.random.choice(self.vocab_model.size, self.noise_sample_size, p = self.noise_dist, replace = False)
@@ -314,8 +310,8 @@ class CBOW(BaseModel):
                 raise Exception("loss is nan!")
             if VERBOSE:
                 print _batch_loss.eval()
-            ave_loss.append(_batch_loss)
-        return np.mean(ave_loss)
+            ave_loss += _batch_loss
+        return ave_loss / len(batches)
 
 class Vocab(object):
     def __init__(self, vocab_file):
